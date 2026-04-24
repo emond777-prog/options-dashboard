@@ -1,4 +1,6 @@
 import yfinance as yf
+import pandas as pd
+
 from ta.volatility import BollingerBands
 from ta.momentum import RSIIndicator
 from ta.trend import ADXIndicator
@@ -13,42 +15,37 @@ def analyze_stock(ticker):
     if df is None or df.empty:
         return None, None
 
-    close = df["Close"]
-
-    # Fix dimensional issue
-    if hasattr(close, "ndim") and close.ndim > 1:
-        close = close.squeeze()
-
-    if close is None or len(close) < 50:
+    if not all(col in df.columns for col in ["Close", "High", "Low"]):
         return None, None
 
+    close = df["Close"]
+    high = df["High"]
+    low = df["Low"]
+
+    # Ensure 1D
+    if hasattr(close, "ndim") and close.ndim > 1:
+        close = close.squeeze()
+    if hasattr(high, "ndim") and high.ndim > 1:
+        high = high.squeeze()
+    if hasattr(low, "ndim") and low.ndim > 1:
+        low = low.squeeze()
+
+    # Align all series
+    aligned = pd.concat([high, low, close], axis=1)
+    aligned.columns = ["high", "low", "close"]
+    aligned = aligned.dropna()
+
+    if len(aligned) < 50:
+        return None, None
+
+    high = aligned["high"]
+    low = aligned["low"]
+    close = aligned["close"]
+
+    # Indicators
     bb = BollingerBands(close, 20, 2)
     rsi = RSIIndicator(close, 14).rsi()
-   high = df["High"]
-low = df["Low"]
-
-# Fix dimensional issues
-if hasattr(high, "ndim") and high.ndim > 1:
-    high = high.squeeze()
-
-if hasattr(low, "ndim") and low.ndim > 1:
-    low = low.squeeze()
-
-# Align all series
-aligned = high.to_frame("high").join(
-    low.to_frame("low"), how="inner"
-).join(
-    close.to_frame("close"), how="inner"
-).dropna()
-
-if len(aligned) < 50:
-    return None, None
-
-high = aligned["high"]
-low = aligned["low"]
-close = aligned["close"]
-
-adx = ADXIndicator(high, low, close, 14).adx()
+    adx = ADXIndicator(high, low, close, 14).adx()
     ma200 = close.rolling(200).mean()
 
     data = {
@@ -70,7 +67,6 @@ def generate_signal(ticker, d, close_series):
     iv_rank = compute_iv_rank(close_series)
     regime = market_trend()
 
-    # SELL PUT
     if (
         d["price"] < d["bb_low"]
         and d["price"] > d["ma200"]
@@ -81,7 +77,6 @@ def generate_signal(ticker, d, close_series):
     ):
         return "SELL PUT"
 
-    # SELL CALL
     if (
         d["price"] > d["bb_high"]
         and d["rsi"] > 65
