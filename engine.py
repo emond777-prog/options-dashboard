@@ -24,7 +24,31 @@ def analyze_stock(ticker):
 
     bb = BollingerBands(close, 20, 2)
     rsi = RSIIndicator(close, 14).rsi()
-    adx = ADXIndicator(df["High"], df["Low"], close, 14).adx()
+   high = df["High"]
+low = df["Low"]
+
+# Fix dimensional issues
+if hasattr(high, "ndim") and high.ndim > 1:
+    high = high.squeeze()
+
+if hasattr(low, "ndim") and low.ndim > 1:
+    low = low.squeeze()
+
+# Align all series
+aligned = high.to_frame("high").join(
+    low.to_frame("low"), how="inner"
+).join(
+    close.to_frame("close"), how="inner"
+).dropna()
+
+if len(aligned) < 50:
+    return None, None
+
+high = aligned["high"]
+low = aligned["low"]
+close = aligned["close"]
+
+adx = ADXIndicator(high, low, close, 14).adx()
     ma200 = close.rolling(200).mean()
 
     data = {
