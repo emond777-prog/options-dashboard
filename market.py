@@ -1,14 +1,12 @@
-import numpy as np
+import yfinance as yf
 
-def compute_iv_rank(close):
-    returns = close.pct_change().dropna()
-    vol = returns.rolling(20).std() * np.sqrt(252)
+def market_trend():
+    df = yf.download("SPY", period="6mo", interval="1d")
 
-    current = vol.iloc[-1]
-    min_v = vol.min()
-    max_v = vol.max()
+    close = df["Close"]
+    ma50 = close.rolling(50).mean()
 
-    if max_v == min_v:
-        return 0
-
-    return (current - min_v) / (max_v - min_v)
+    if close.iloc[-1] > ma50.iloc[-1]:
+        return "BULL"
+    else:
+        return "BEAR"
