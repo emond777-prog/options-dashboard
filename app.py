@@ -5,7 +5,7 @@ import yfinance as yf
 from universe import get_universe
 from scanner import scan_market
 
-from portfolio import load_positions
+from portfolio import load_positions, save_position
 from pnl import compute_pnl
 from rolling import rolling_decision
 
@@ -34,21 +34,25 @@ st.write(regime)
 
 
 # =========================
-# TRADE SCANNER
+# SCANNER (CACHED)
 # =========================
+@st.cache_data(ttl=3600)
+def run_scan():
+    tickers = get_universe()
+    return scan_market(tickers)
+
+
 st.header("📡 Best Trade Opportunities")
 
 results = []
 
 try:
-    tickers = get_universe()
-    results = scan_market(tickers)
+    results = run_scan()
 
     if results:
         df = pd.DataFrame(results)
         df = df.sort_values(by="Score", ascending=False)
 
-        # Color signals
         def color_signal(val):
             if val == "SELL PUT":
                 return "color: green"
@@ -64,17 +68,17 @@ try:
     else:
         st.info("No high-quality setups right now")
 
-except Exception as e:
+except Exception:
     st.error("Scanner error - check logs")
 
 
 # =========================
-# CHARTS SECTION
+# CHARTS (TOP TRADES)
 # =========================
 st.header("📈 Top Charts")
 
 if results:
-    top = results[:3]  # show top 3 opportunities
+    top = results[:3]
 
     for trade in top:
         ticker = trade["Ticker"]
@@ -95,7 +99,50 @@ if results:
 
 
 # =========================
-# PORTFOLIO SECTION
+# ADD TRADE (AUTO CSV)
+# =========================
+st.header("➕ Add Trade")
+
+with st.form("add_trade_form"):
+
+    col1, col2 = st.columns(2)
+
+    ticker = col1.text_input("Ticker", value="AAPL")
+    option_type = col2.selectbox("Type", ["PUT", "CALL"])
+
+    col3, col4 = st.columns(2)
+
+    strike = col3.number_input("Strike", value=100.0)
+    premium = col4.number_input("Premium", value=1.0)
+
+    col5, col6 = st.columns(2)
+
+    contracts = col5.number_input("Contracts", value=1)
+    entry_price = col6.number_input("Stock Price", value=100.0)
+
+    expiry = st.text_input("Expiry (YYYY-MM-DD)", value="2026-06-20")
+
+    submitted = st.form_submit_button("Add Position")
+
+    if submitted:
+        new_trade = {
+            "ticker": ticker,
+            "type": option_type,
+            "strike": strike,
+            "expiry": expiry,
+            "premium": premium,
+            "contracts": contracts,
+            "entry_price": entry_price,
+            "current_price": None
+        }
+
+        save_position(new_trade)
+
+        st.success(f"Trade added: {ticker}")
+
+
+# =========================
+# PORTFOLIO
 # =========================
 st.header("📁 Portfolio")
 
