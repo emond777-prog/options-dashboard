@@ -12,120 +12,116 @@ from rolling import rolling_decision
 from market import market_trend
 
 
-# =========================
-# PAGE CONFIG
-# =========================
 st.set_page_config(page_title="Options Dashboard", layout="wide")
-
 st.title("📊 Options Trading Dashboard")
 
 
 # =========================
-# MARKET REGIME
+# SIDEBAR SETTINGS
+# =========================
+st.sidebar.header("⚙️ Strategy Settings")
+
+mode = st.sidebar.selectbox(
+    "Preset Mode",
+    ["Conservative", "Balanced", "Aggressive", "Custom"]
+)
+
+rsi_low = 45
+rsi_high = 60
+adx_max = 35
+bb_tol = 0.02
+
+if mode == "Conservative":
+    rsi_low = 35
+    rsi_high = 65
+    adx_max = 25
+    bb_tol = 0.01
+
+elif mode == "Balanced":
+    rsi_low = 45
+    rsi_high = 60
+    adx_max = 35
+    bb_tol = 0.02
+
+elif mode == "Aggressive":
+    rsi_low = 50
+    rsi_high = 55
+    adx_max = 45
+    bb_tol = 0.04
+
+if mode == "Custom":
+    rsi_low = st.sidebar.slider("RSI Oversold", 20, 60, 45)
+    rsi_high = st.sidebar.slider("RSI Overbought", 50, 80, 60)
+    adx_max = st.sidebar.slider("Max ADX", 10, 50, 35)
+    bb_tol = st.sidebar.slider("BB tolerance", 0.0, 0.05, 0.02)
+
+params = {
+    "rsi_low": rsi_low,
+    "rsi_high": rsi_high,
+    "adx_max": adx_max,
+    "bb_tol": bb_tol
+}
+
+st.sidebar.json(params)
+
+
+# =========================
+# MARKET
 # =========================
 st.header("🌍 Market Regime")
-
-try:
-    regime = market_trend()
-except:
-    regime = "UNKNOWN"
-
-st.write(regime)
+st.write(market_trend())
 
 
 # =========================
-# SCANNER (CACHED)
+# SCANNER
 # =========================
 @st.cache_data(ttl=3600)
-def run_scan():
-    tickers = get_universe()
-    return scan_market(tickers)
+def run_scan(params):
+    return scan_market(get_universe(), params)
 
+results = run_scan(params)
 
 st.header("📡 Best Trade Opportunities")
 
-results = []
-
-try:
-    results = run_scan()
-
-    if results:
-        df = pd.DataFrame(results)
-        df = df.sort_values(by="Score", ascending=False)
-
-        def color_signal(val):
-            if val == "SELL PUT":
-                return "color: green"
-            elif val == "SELL CALL":
-                return "color: red"
-            return ""
-
-        st.dataframe(
-            df.style.applymap(color_signal, subset=["Signal"]),
-            use_container_width=True
-        )
-
-    else:
-        st.info("No high-quality setups right now")
-
-except Exception:
-    st.error("Scanner error - check logs")
+if results:
+    df = pd.DataFrame(results)
+    st.dataframe(df, use_container_width=True)
+else:
+    st.info("No setups today")
 
 
 # =========================
-# CHARTS (TOP TRADES)
+# CHARTS
 # =========================
 st.header("📈 Top Charts")
 
-if results:
-    top = results[:3]
+for trade in results[:3]:
+    ticker = trade["Ticker"]
+    st.subheader(ticker)
 
-    for trade in top:
-        ticker = trade["Ticker"]
-        signal = trade["Signal"]
-
-        st.subheader(f"{ticker} → {signal}")
-
-        try:
-            df_chart = yf.download(ticker, period="3mo", interval="1d")
-
-            if df_chart is not None and not df_chart.empty:
-                st.line_chart(df_chart["Close"])
-            else:
-                st.write("No chart data")
-
-        except:
-            st.write("Chart error")
+    try:
+        df_chart = yf.download(ticker, period="3mo")
+        st.line_chart(df_chart["Close"])
+    except:
+        st.write("Chart error")
 
 
 # =========================
-# ADD TRADE (AUTO CSV)
+# ADD TRADE
 # =========================
 st.header("➕ Add Trade")
 
-with st.form("add_trade_form"):
+with st.form("form"):
+    ticker = st.text_input("Ticker")
+    option_type = st.selectbox("Type", ["PUT","CALL"])
+    strike = st.number_input("Strike", value=100.0)
+    premium = st.number_input("Premium", value=1.0)
+    contracts = st.number_input("Contracts", value=1)
+    entry_price = st.number_input("Stock Price", value=100.0)
+    expiry = st.text_input("Expiry", "2026-06-20")
 
-    col1, col2 = st.columns(2)
-
-    ticker = col1.text_input("Ticker", value="AAPL")
-    option_type = col2.selectbox("Type", ["PUT", "CALL"])
-
-    col3, col4 = st.columns(2)
-
-    strike = col3.number_input("Strike", value=100.0)
-    premium = col4.number_input("Premium", value=1.0)
-
-    col5, col6 = st.columns(2)
-
-    contracts = col5.number_input("Contracts", value=1)
-    entry_price = col6.number_input("Stock Price", value=100.0)
-
-    expiry = st.text_input("Expiry (YYYY-MM-DD)", value="2026-06-20")
-
-    submitted = st.form_submit_button("Add Position")
-
-    if submitted:
-        new_trade = {
+    if st.form_submit_button("Add"):
+        save_position({
             "ticker": ticker,
             "type": option_type,
             "strike": strike,
@@ -134,11 +130,9 @@ with st.form("add_trade_form"):
             "contracts": contracts,
             "entry_price": entry_price,
             "current_price": None
-        }
+        })
 
-        save_position(new_trade)
-
-        st.success(f"Trade added: {ticker}")
+        st.success("Trade added")
 
 
 # =========================
@@ -148,20 +142,9 @@ st.header("📁 Portfolio")
 
 positions = load_positions()
 
-if positions is not None and not positions.empty:
-
-    try:
-        pnl_df = compute_pnl(positions)
-
-        if pnl_df is not None and not pnl_df.empty:
-            pnl_df["Action"] = pnl_df.apply(rolling_decision, axis=1)
-
-            st.dataframe(pnl_df, use_container_width=True)
-        else:
-            st.info("No active PnL data yet")
-
-    except Exception:
-        st.error("Error computing portfolio")
-
+if not positions.empty:
+    pnl_df = compute_pnl(positions)
+    pnl_df["Action"] = pnl_df.apply(rolling_decision, axis=1)
+    st.dataframe(pnl_df)
 else:
     st.info("No positions yet")
