@@ -140,7 +140,9 @@ if results:
         col1, col2, col3 = st.columns(3)
 
         contracts = col1.number_input("Contracts", 1, 20, 1)
-        expiry = col2.text_input("Expiry (YYYY-MM-DD)", "2026-06-20")
+        from expiry import get_next_monthly_expiry
+        default_expiry = get_next_monthly_expiry()
+        expiry = col2.text_input("Expiry (YYYY-MM-DD)", default_expiry)
         premium = col3.number_input("Premium", value=float(trade["Premium"]))
 
         if st.button("✅ Confirm Add Trade"):
