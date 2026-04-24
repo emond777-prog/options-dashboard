@@ -1,49 +1,83 @@
 import streamlit as st
 import pandas as pd
 
-from engine import analyze_stock, generate_signal
+from universe import get_universe
+from scanner import scan_market
+
 from portfolio import load_positions
 from pnl import compute_pnl
 from rolling import rolling_decision
+
 from market import market_trend
 
-WATCHLIST = ["AAPL","MSFT","GOOGL","AMZN","AMD","TSLA"]
+
+# =========================
+# PAGE CONFIG
+# =========================
+st.set_page_config(page_title="Options Dashboard", layout="wide")
 
 st.title("📊 Options Trading Dashboard")
 
-# === MARKET ===
+
+# =========================
+# MARKET REGIME
+# =========================
 st.header("🌍 Market Regime")
-st.write(market_trend())
 
-# === SIGNALS ===
-st.header("📡 Trade Signals")
+try:
+    regime = market_trend()
+except:
+    regime = "UNKNOWN"
 
-signals = []
+st.write(regime)
 
-for ticker in WATCHLIST:
-    data, close_series = analyze_stock(ticker)
-    signal = generate_signal(ticker, data, close_series)
 
-    if signal:
-        signals.append({
-            "Ticker": ticker,
-            "Price": round(data["price"],2),
-            "RSI": round(data["rsi"],1),
-            "ADX": round(data["adx"],1),
-            "Signal": signal
-        })
+# =========================
+# TRADE SCANNER
+# =========================
+st.header("📡 Best Trade Opportunities")
 
-st.dataframe(pd.DataFrame(signals))
+try:
+    tickers = get_universe()
+    results = scan_market(tickers)
 
-# === PORTFOLIO ===
+    if results:
+        df = pd.DataFrame(results)
+
+        # Optional sorting by score
+        df = df.sort_values(by="Score", ascending=False)
+
+        st.dataframe(df, use_container_width=True)
+
+    else:
+        st.info("No high-quality setups right now")
+
+except Exception as e:
+    st.error("Scanner error - check logs")
+
+
+# =========================
+# PORTFOLIO SECTION
+# =========================
 st.header("📁 Portfolio")
 
 positions = load_positions()
 
-if not positions.empty:
-    pnl_df = compute_pnl(positions)
-    pnl_df["Action"] = pnl_df.apply(rolling_decision, axis=1)
+if positions is not None and not positions.empty:
 
-    st.dataframe(pnl_df)
+    try:
+        pnl_df = compute_pnl(positions)
+
+        if not pnl_df.empty:
+            pnl_df["Action"] = pnl_df.apply(rolling_decision, axis=1)
+
+            st.dataframe(pnl_df, use_container_width=True)
+        else:
+            st.write("No active PnL data yet")
+
+    except:
+        st.error("Error computing portfolio")
+
 else:
     st.write("No positions yet")
+    st.dataframe(pnl_df)
