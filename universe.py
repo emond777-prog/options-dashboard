@@ -1,15 +1,23 @@
 def get_universe():
     return [
-        # US (liquid options)
+        # Mega caps
         "AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA",
-        "AMD","NFLX","INTC","SPY","QQQ","IWM",
+
+        # Growth / Tech
+        "AMD","NFLX","INTC","CRM","ADBE","PYPL",
+
+        # ETFs (VERY IMPORTANT)
+        "SPY","QQQ","IWM","DIA",
 
         # Financials
         "JPM","BAC","GS","MS",
 
         # Energy
-        "XOM","CVX",
+        "XOM","CVX","SLB",
 
-        # Canada (TSX)
+        # Healthcare
+        "JNJ","PFE","UNH",
+
+        # Canada
         "SHOP.TO","RY.TO","TD.TO","BNS.TO","ENB.TO"
     ]
