@@ -25,7 +25,7 @@ mode = st.sidebar.selectbox(
     ["Conservative", "Balanced", "Aggressive", "Custom"]
 )
 
-# Default values
+# Defaults
 rsi_low = 45
 rsi_high = 60
 adx_max = 35
@@ -87,24 +87,25 @@ st.header("📡 Best Trade Opportunities")
 
 
 # =========================
-# INTERACTIVE TRADE LIST
+# INTERACTIVE TABLE
 # =========================
 if results:
     df = pd.DataFrame(results)
 
     st.subheader("Click to add trade")
-# Header row
-h1, h2, h3, h4, h5, h6, h7 = st.columns(7)
 
-h1.markdown("**Ticker**")
-h2.markdown("**Signal**")
-h3.markdown("**Price**")
-h4.markdown("**Strike**")
-h5.markdown("**Premium**")
-h6.markdown("**Probability**")
-h7.markdown("**Action**")
+    # Header row
+    h1, h2, h3, h4, h5, h6, h7 = st.columns(7)
 
-st.markdown("---")
+    h1.markdown("**Ticker**")
+    h2.markdown("**Signal**")
+    h3.markdown("**Price**")
+    h4.markdown("**Strike**")
+    h5.markdown("**Premium**")
+    h6.markdown("**Probability**")
+    h7.markdown("**Action**")
+
+    st.markdown("---")
 
     for i, row in df.iterrows():
 
@@ -112,7 +113,7 @@ st.markdown("---")
 
         col1.write(row["Ticker"])
         col2.write(row["Signal"])
-        col3.write(f"${row['Price']}")
+        col3.markdown(f"**${row['Price']}**")
         col4.write(row["Strike"])
         col5.write(row["Premium"])
         col6.write(f"{row['Prob_%']}%")
@@ -121,7 +122,6 @@ st.markdown("---")
 
         if add_clicked:
             st.session_state["selected_trade"] = row.to_dict()
-
 
     # =========================
     # CONFIRMATION PANEL
