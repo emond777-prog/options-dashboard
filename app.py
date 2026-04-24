@@ -80,7 +80,10 @@ st.write(market_trend())
 def run_scan(params):
     return scan_market(get_universe(), params)
 
+tickers = get_universe()
+st.write(f"Scanning {len(tickers)} stocks")
 
+results = scan_market(tickers, params)
 results = run_scan(params)
 
 st.header("📡 Best Trade Opportunities")
