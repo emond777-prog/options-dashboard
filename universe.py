@@ -1,23 +1,19 @@
+import pandas as pd
+
 def get_universe():
-    return [
-        # Mega caps
-        "AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA",
+    try:
+        # Wikipedia S&P 500 list
+        url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+        tables = pd.read_html(url)
+        sp500 = tables[0]
 
-        # Growth / Tech
-        "AMD","NFLX","INTC","CRM","ADBE","PYPL",
+        tickers = sp500["Symbol"].tolist()
 
-        # ETFs (VERY IMPORTANT)
-        "SPY","QQQ","IWM","DIA",
+        # Fix Yahoo format (dots → dashes)
+        tickers = [t.replace(".", "-") for t in tickers]
 
-        # Financials
-        "JPM","BAC","GS","MS",
+        return tickers
 
-        # Energy
-        "XOM","CVX","SLB",
-
-        # Healthcare
-        "JNJ","PFE","UNH",
-
-        # Canada
-        "SHOP.TO","RY.TO","TD.TO","BNS.TO","ENB.TO"
-    ]
+    except:
+        # fallback if fails
+        return ["AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA"]
