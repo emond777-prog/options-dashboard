@@ -14,6 +14,5 @@ def load_positions():
 
 def save_position(new_row):
     df = load_positions()
-
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     df.to_csv(FILE, index=False)
