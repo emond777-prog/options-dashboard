@@ -141,6 +141,7 @@ if results:
 
         contracts = col1.number_input("Contracts", 1, 20, 1)
         from expiry import get_next_monthly_expiry
+        
         default_expiry = get_next_monthly_expiry()
         expiry = col2.text_input("Expiry (YYYY-MM-DD)", default_expiry)
         premium = col3.number_input("Premium", value=float(trade["Premium"]))
