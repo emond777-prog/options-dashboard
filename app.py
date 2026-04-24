@@ -43,8 +43,6 @@ try:
 
     if results:
         df = pd.DataFrame(results)
-
-        # Optional sorting by score
         df = df.sort_values(by="Score", ascending=False)
 
         st.dataframe(df, use_container_width=True)
@@ -52,7 +50,7 @@ try:
     else:
         st.info("No high-quality setups right now")
 
-except Exception as e:
+except Exception:
     st.error("Scanner error - check logs")
 
 
@@ -68,16 +66,15 @@ if positions is not None and not positions.empty:
     try:
         pnl_df = compute_pnl(positions)
 
-        if not pnl_df.empty:
+        if pnl_df is not None and not pnl_df.empty:
             pnl_df["Action"] = pnl_df.apply(rolling_decision, axis=1)
 
             st.dataframe(pnl_df, use_container_width=True)
         else:
-            st.write("No active PnL data yet")
+            st.info("No active PnL data yet")
 
-    except:
+    except Exception:
         st.error("Error computing portfolio")
 
 else:
-    st.write("No positions yet")
-    st.dataframe(pnl_df)
+    st.info("No positions yet")
