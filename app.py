@@ -93,6 +93,18 @@ if results:
     df = pd.DataFrame(results)
 
     st.subheader("Click to add trade")
+# Header row
+h1, h2, h3, h4, h5, h6, h7 = st.columns(7)
+
+h1.markdown("**Ticker**")
+h2.markdown("**Signal**")
+h3.markdown("**Price**")
+h4.markdown("**Strike**")
+h5.markdown("**Premium**")
+h6.markdown("**Probability**")
+h7.markdown("**Action**")
+
+st.markdown("---")
 
     for i, row in df.iterrows():
 
