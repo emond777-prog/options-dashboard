@@ -9,7 +9,14 @@ from market import market_trend
 def analyze_stock(ticker):
     df = yf.download(ticker, period="6mo", interval="1d")
 
-    close = df["Close"]
+   close = df["Close"]
+
+# Fix dimensional issue
+if hasattr(close, "ndim") and close.ndim > 1:
+    close = close.squeeze()
+
+if close is None or len(close) < 50:
+    return None, None
 
     bb = BollingerBands(close, 20, 2)
     rsi = RSIIndicator(close, 14).rsi()
