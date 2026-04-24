@@ -8,7 +8,6 @@ from scanner import scan_market
 from portfolio import load_positions, save_position
 from pnl import compute_pnl
 from rolling import rolling_decision
-
 from market import market_trend
 
 
@@ -26,6 +25,7 @@ mode = st.sidebar.selectbox(
     ["Conservative", "Balanced", "Aggressive", "Custom"]
 )
 
+# Default values
 rsi_low = 45
 rsi_high = 60
 adx_max = 35
@@ -50,6 +50,7 @@ elif mode == "Aggressive":
     bb_tol = 0.04
 
 if mode == "Custom":
+    st.sidebar.subheader("Manual Controls")
     rsi_low = st.sidebar.slider("RSI Oversold", 20, 60, 45)
     rsi_high = st.sidebar.slider("RSI Overbought", 50, 80, 60)
     adx_max = st.sidebar.slider("Max ADX", 10, 50, 35)
@@ -66,7 +67,7 @@ st.sidebar.json(params)
 
 
 # =========================
-# MARKET
+# MARKET REGIME
 # =========================
 st.header("🌍 Market Regime")
 st.write(market_trend())
@@ -79,13 +80,73 @@ st.write(market_trend())
 def run_scan(params):
     return scan_market(get_universe(), params)
 
+
 results = run_scan(params)
 
 st.header("📡 Best Trade Opportunities")
 
+
+# =========================
+# INTERACTIVE TRADE LIST
+# =========================
 if results:
     df = pd.DataFrame(results)
-    st.dataframe(df, use_container_width=True)
+
+    st.subheader("Click to add trade")
+
+    for i, row in df.iterrows():
+
+        col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
+
+        col1.write(row["Ticker"])
+        col2.write(row["Signal"])
+        col3.write(f"${row['Price']}")
+        col4.write(row["Strike"])
+        col5.write(row["Premium"])
+        col6.write(f"{row['Prob_%']}%")
+
+        add_clicked = col7.button("Add", key=f"add_{i}")
+
+        if add_clicked:
+            st.session_state["selected_trade"] = row.to_dict()
+
+
+    # =========================
+    # CONFIRMATION PANEL
+    # =========================
+    if "selected_trade" in st.session_state:
+
+        trade = st.session_state["selected_trade"]
+        option_type = trade["Signal"].split()[1]
+
+        st.markdown("---")
+        st.subheader(f"📝 Confirm Trade: {trade['Ticker']}")
+
+        col1, col2, col3 = st.columns(3)
+
+        contracts = col1.number_input("Contracts", 1, 20, 1)
+        expiry = col2.text_input("Expiry (YYYY-MM-DD)", "2026-06-20")
+        premium = col3.number_input("Premium", value=float(trade["Premium"]))
+
+        if st.button("✅ Confirm Add Trade"):
+
+            new_trade = {
+                "ticker": trade["Ticker"],
+                "type": option_type,
+                "strike": trade["Strike"],
+                "expiry": expiry,
+                "premium": premium,
+                "contracts": contracts,
+                "entry_price": trade["Price"],
+                "current_price": None
+            }
+
+            save_position(new_trade)
+
+            st.success(f"{trade['Ticker']} added to portfolio")
+
+            del st.session_state["selected_trade"]
+
 else:
     st.info("No setups today")
 
@@ -107,35 +168,6 @@ for trade in results[:3]:
 
 
 # =========================
-# ADD TRADE
-# =========================
-st.header("➕ Add Trade")
-
-with st.form("form"):
-    ticker = st.text_input("Ticker")
-    option_type = st.selectbox("Type", ["PUT","CALL"])
-    strike = st.number_input("Strike", value=100.0)
-    premium = st.number_input("Premium", value=1.0)
-    contracts = st.number_input("Contracts", value=1)
-    entry_price = st.number_input("Stock Price", value=100.0)
-    expiry = st.text_input("Expiry", "2026-06-20")
-
-    if st.form_submit_button("Add"):
-        save_position({
-            "ticker": ticker,
-            "type": option_type,
-            "strike": strike,
-            "expiry": expiry,
-            "premium": premium,
-            "contracts": contracts,
-            "entry_price": entry_price,
-            "current_price": None
-        })
-
-        st.success("Trade added")
-
-
-# =========================
 # PORTFOLIO
 # =========================
 st.header("📁 Portfolio")
@@ -145,6 +177,6 @@ positions = load_positions()
 if not positions.empty:
     pnl_df = compute_pnl(positions)
     pnl_df["Action"] = pnl_df.apply(rolling_decision, axis=1)
-    st.dataframe(pnl_df)
+    st.dataframe(pnl_df, use_container_width=True)
 else:
     st.info("No positions yet")
